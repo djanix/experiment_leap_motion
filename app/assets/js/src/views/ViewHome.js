@@ -91,42 +91,38 @@ define([
 				$.each(obj.gestures, function (index, value) {
 					var currentGesture = $(this)[0];
 
+					if (currentGesture.type == 'circle' && currentGesture.state == 'stop') {
+						slider.startAuto();
+						return;
+					}
+
 					if (currentGesture.type != 'swipe' || currentGesture.state != 'stop') { return; }
 
 					var strengthX = Math.abs(currentGesture.direction[0]);
 					var strengthY = Math.abs(currentGesture.direction[1]);
 
-					if (strengthX < strengthY) { return; }
+					slider.stopAuto();
 
-					if (currentGesture.direction[0] < 0) {
-						slider.goToPrevSlide();
-					} else if (currentGesture.direction[0] > 0) {
-						slider.goToNextSlide();
+					if (strengthX < strengthY) {
+						if (currentGesture.direction[0] < 0) {
+							slider.goToSlide(slider.getSlideCount() - 1);
+						} else if (currentGesture.direction[0] > 0) {
+							slider.goToSlide(0);
+						}
+					} else {
+						if (currentGesture.direction[0] < 0) {
+							slider.goToPrevSlide();
+						} else if (currentGesture.direction[0] > 0) {
+							slider.goToNextSlide();
+						}
 					}
 				});
 			});
 		},
 
-		hueChange: function() {
-			var self = this;
-
-			self.controller.loop(function(obj) {
-				if (obj.hands.length < 1) return;
-
-				var hand = obj.hands[0];
-
-				var x = hand.palmPosition[0];
-				var y = hand.palmPosition[1];
-
-				var hue = Math.round(x/2) % 360;
-				var saturation = Math.round(y/3);
-
-				self.el.find('.hueChange').css('-webkit-filter', 'hue-rotate(' + hue + 'deg) saturate(' + saturation + '%)');
-			});
-		},
-
 		object3d: function() {
 			var self = this;
+			var camaroMatIndex = 0;
 			var WIDTH = 900,
 				HEIGHT = 600;
 
@@ -142,6 +138,7 @@ define([
 			var renderer = new THREE.WebGLRenderer();
 			var camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
 			var scene = new THREE.Scene();
+			var material = new THREE.MeshFaceMaterial();
 
 			var cameraControls = new THREE.LeapCameraControls(camera);
 //			cameraControls.rotateSpeed    = 3;
@@ -160,12 +157,42 @@ define([
 			var urls = [ r + "px.jpg", r + "nx.jpg", r + "py.jpg", r + "ny.jpg", r + "pz.jpg", r + "nz.jpg" ];
 			var textureCube = THREE.ImageUtils.loadTextureCube(urls);
 			var camaroMaterials = {
-				body: new THREE.MeshLambertMaterial({
-					color: 0xff6600,
-					envMap: textureCube,
-					combine: THREE.MixOperation,
-					reflectivity: 0.3
-				}),
+				body: [
+					new THREE.MeshLambertMaterial({
+						color: 0xff6600,
+						envMap: textureCube,
+						combine: THREE.MixOperation,
+						reflectivity: 0.3
+					}),
+
+					new THREE.MeshLambertMaterial({
+						color: 0x4acff0,
+						envMap: textureCube,
+						combine: THREE.MixOperation,
+						reflectivity: 0.3
+					}),
+
+					new THREE.MeshLambertMaterial({
+						color: 0xffffff,
+						envMap: textureCube,
+						combine: THREE.MixOperation,
+						reflectivity: 0.3
+					}),
+
+					new THREE.MeshLambertMaterial({
+						color: 0x660000,
+						envMap: textureCube,
+						combine: THREE.MixOperation,
+						reflectivity: 0.3
+					}),
+
+					new THREE.MeshLambertMaterial({
+						color: 0x24d212,
+						envMap: textureCube,
+						combine: THREE.MixOperation,
+						reflectivity: 0.3
+					})
+				],
 
 				chrome: new THREE.MeshLambertMaterial({
 					color: 0xffffff,
@@ -178,7 +205,7 @@ define([
 				}),
 
 				glass: new THREE.MeshBasicMaterial({
-					color: 0x223344,
+					color: 0x424242,
 					envMap: textureCube,
 					opacity: 0.25,
 					combine: THREE.MixOperation,
@@ -203,19 +230,19 @@ define([
 
 			var loader = new THREE.BinaryLoader();
 			loader.load("./assets/js/vendor/threejs/examples/obj/camaro/CamaroNoUv_bin.js", function (geometry) {
-				var s = 75, m = new THREE.MeshFaceMaterial();
+				var s = 75;
 
-				m.materials[0] = camaroMaterials.body; // car body
-				m.materials[1] = camaroMaterials.chrome; // wheels chrome
-				m.materials[2] = camaroMaterials.chrome; // grille chrome
-				m.materials[3] = camaroMaterials.darkchrome; // door lines
-				m.materials[4] = camaroMaterials.glass; // windshield
-				m.materials[5] = camaroMaterials.interior; // interior
-				m.materials[6] = camaroMaterials.tire; // tire
-				m.materials[7] = camaroMaterials.black; // tireling
-				m.materials[8] = camaroMaterials.black; // behind grille
+				material.materials[0] = camaroMaterials.body[camaroMatIndex]; // car body
+				material.materials[1] = camaroMaterials.chrome; // wheels chrome
+				material.materials[2] = camaroMaterials.chrome; // grille chrome
+				material.materials[3] = camaroMaterials.darkchrome; // door lines
+				material.materials[4] = camaroMaterials.glass; // windshield
+				material.materials[5] = camaroMaterials.interior; // interior
+				material.materials[6] = camaroMaterials.tire; // tire
+				material.materials[7] = camaroMaterials.black; // tireling
+				material.materials[8] = camaroMaterials.black; // behind grille
 
-				var mesh = new THREE.Mesh(geometry, m);
+				var mesh = new THREE.Mesh(geometry, material);
 				mesh.rotation.y = 1;
 				mesh.scale.set(s, s, s);
 				scene.add(mesh);
@@ -229,14 +256,58 @@ define([
 			directionalLight.position.set(1, 1, 0.5).normalize();
 			scene.add(directionalLight);
 
-			var pointLight = new THREE.PointLight(0xffaa00);
+			var pointLight = new THREE.PointLight(0xffffff);
 			pointLight.position.set(0, 0, 0);
 			scene.add(pointLight);
 
 			self.controller.loop(function(obj) {
 				cameraControls.update(obj);
 				pointLight.position = camera.position;
+
+				$.each(obj.gestures, function (index, value) {
+					var currentGesture = $(this)[0];
+
+					if (currentGesture.type == 'swipe' && currentGesture.state == 'stop') {
+						var strengthX = Math.abs(currentGesture.direction[0]);
+						var strengthY = Math.abs(currentGesture.direction[1]);
+
+						if (strengthX > strengthY) {
+							if (currentGesture.direction[0] < 0) {
+								camaroMatIndex--;
+							} else if (currentGesture.direction[0] > 0) {
+								camaroMatIndex++;
+							}
+
+							if (camaroMatIndex > camaroMaterials.body.length - 1) {
+								camaroMatIndex = 0;
+							} else if (camaroMatIndex < 0) {
+								camaroMatIndex = camaroMaterials.body.length - 1;
+							}
+
+							material.materials[0] = camaroMaterials.body[camaroMatIndex];
+						}
+					}
+				});
+
 				renderer.render(scene, camera);
+			});
+		},
+
+		hueChange: function() {
+			var self = this;
+
+			self.controller.loop(function(obj) {
+				if (obj.hands.length < 1) return;
+
+				var hand = obj.hands[0];
+
+				var x = hand.palmPosition[0];
+				var y = hand.palmPosition[1];
+
+				var hue = Math.round(x/2) % 360;
+				var saturation = Math.round(y/3);
+
+				self.el.find('.hueChange').css('-webkit-filter', 'hue-rotate(' + hue + 'deg) saturate(' + saturation + '%)');
 			});
 		},
 
