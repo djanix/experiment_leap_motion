@@ -1,0 +1,11 @@
+{
+  "name": "leap-motion",
+  "version": "0.0.1",
+  "dependencies": {
+    "jquery": "1.10.2",
+    "modernizr": "~2.6.2",
+    "leapjs": "~0.2.1",
+    "bxslider-4": "*",
+    "threejs": "*"
+  }
+}
